@@ -16,6 +16,8 @@ export async function build({
 
   // Build the code here…
   /*
+
+    run: stack new my-project
     The stack new command should have created the following files:
 
     ├── .stack/
@@ -64,7 +66,7 @@ async function getStackFiles(workPath: string): Promise<Files> {
     try {
 		await execa.command('curl -sSL https://get.haskellstack.org/ | sh', { shell: true });
 
-		hsPath = join(hsbinDir, 'deno');
+		hsPath = join(hsbinDir, 'stack');
 	} catch (err) {
 		console.log(err);
 		throw new Error(err);

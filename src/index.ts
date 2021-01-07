@@ -1,5 +1,5 @@
 import { BuildOptions, download, createLambda, shouldServe, Files, FileFsRef } from '@vercel/build-utils';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import execa from 'execa';
 
 export const version = 3;
@@ -38,41 +38,50 @@ export async function build({
     3 directories, 10 files
   */
 
+    console.log('installing haskell stack tool');
+
+    await installStack();
+
     console.log("downloading source files");
 
     const downloadedFiles = await download(files, workPath, meta);
 
-    const hsFiles = await getStackFiles(workPath);
+    const entrypointPath = downloadedFiles[entrypoint].fsPath;
+	  const entrypointDirname = dirname(entrypointPath);
+
+    console.log("downloading stack files");
+
+    const stackFiles = await getStackFiles(workPath, entrypointDirname);
 
     const lambda = createLambda({
         files: {
         ...downloadedFiles,
-        ...hsFiles
+        ...stackFiles
         },
         handler: entrypoint,
-        runtime: "hs1.x"
+        runtime: "provided"
     });
     return {
         output: lambda
     };
 }
 
-async function getStackFiles(workPath: string): Promise<Files> {
+async function installStack() {
+  try {
+    await execa.command('curl -sSL https://get.haskellstack.org/ | sh', { shell: true });
+  } catch (err) {
+    console.log(err);
+    throw new Error(err);
+  }
+}
 
-    const DOWNLOAD_URL = 'https://get.haskellstack.org/'
-    const hsbinDir = join(workPath, '.stack-work');
-    let hsPath = '';
+async function getStackFiles(workPath: string, entrypointDirname: string): Promise<Files> {
 
-    try {
-		await execa.command('curl -sSL https://get.haskellstack.org/ | sh', { shell: true });
 
-		hsPath = join(hsbinDir, 'stack');
-	} catch (err) {
-		console.log(err);
-		throw new Error(err);
-	}
+  await execa.command('stack build', { cwd: entrypointDirname, stdio: "inherit" });
+  const hsPath = join(workPath, '.stack-work');
 
-    return {
+  return {
 		".stack-work": new FileFsRef({
 			mode: 0o755,
 			fsPath: hsPath,
